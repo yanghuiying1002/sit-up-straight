@@ -1,0 +1,581 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>坐直点 · 摄像头驼背提醒</title>
+<meta name="description" content="用电脑摄像头检测驼背，自动提醒你坐直。免费、开源，画面不上传。">
+<style>
+  :root {
+    --bg: #f5f6f8; --panel: #ffffff; --text: #1d2129; --muted: #6b7280; --border: #e3e6ea;
+    --accent: #2563eb; --good: #16a34a; --warn: #d97706; --bad: #dc2626; --btn: #eef1f5;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1115; --panel: #181b21; --text: #e6e8eb; --muted: #9aa1ab; --border: #2a2f37;
+      --accent: #60a5fa; --good: #22c55e; --warn: #f59e0b; --bad: #ef4444; --btn: #232831;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text);
+         font: 15px/1.55 -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif; }
+  header { max-width: 1180px; margin: 0 auto; padding: 22px 16px 6px; }
+  h1 { margin: 0; font-size: 22px; }
+  .tag { font-size: 12px; font-weight: 500; color: var(--muted); border: 1px solid var(--border);
+         border-radius: 999px; padding: 1px 8px; vertical-align: middle; }
+  .sub { margin: 4px 0 0; color: var(--muted); font-size: 13px; }
+  header { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-end; gap: 8px 16px; }
+  .links { display: flex; gap: 14px; font-size: 14px; }
+  .links a { color: var(--muted); text-decoration: none; }
+  .links a:hover { color: var(--accent); }
+  main { max-width: 1180px; margin: 0 auto; padding: 12px 16px 32px; display: grid;
+         grid-template-columns: minmax(0, 1.6fr) minmax(280px, 1fr); gap: 16px; align-items: start; }
+  @media (max-width: 860px) { main { grid-template-columns: 1fr; } }
+  aside { display: grid; gap: 16px; }
+  .card { background: var(--panel); border: 1px solid var(--border); border-radius: 14px; padding: 16px; }
+  h2 { margin: 0 0 10px; font-size: 15px; }
+
+  .videoWrap { position: relative; aspect-ratio: 4 / 3; background: #000; border-radius: 10px; overflow: hidden; }
+  video, canvas { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); }
+  .placeholder, .countdown { position: absolute; inset: 0; display: grid; place-items: center; color: #fff; text-align: center; padding: 16px; }
+  .placeholder { color: #c9ced6; }
+  .countdown { font-size: 96px; font-weight: 700; text-shadow: 0 2px 12px rgba(0,0,0,.6); pointer-events: none; }
+  .hidden { display: none !important; }
+
+  .controls { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+  button { font: inherit; border: 1px solid var(--border); background: var(--btn); color: var(--text);
+           border-radius: 10px; padding: 8px 14px; cursor: pointer; }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  button:disabled { opacity: .5; cursor: default; }
+  button.link { background: none; border: none; padding: 0; color: var(--muted); font-size: 13px; text-decoration: underline; margin-top: 10px; }
+  .msg { margin: 10px 0 0; font-size: 14px; color: var(--muted); min-height: 1.5em; }
+  .msg.error { color: var(--bad); }
+
+  .scoreCard { text-align: center; }
+  .scoreCard .label { color: var(--muted); font-size: 13px; }
+  .score { font-size: 64px; font-weight: 700; line-height: 1.1; font-variant-numeric: tabular-nums; }
+  .status { font-weight: 600; }
+  .scoreCard[data-state="good"] .score, .scoreCard[data-state="good"] .status { color: var(--good); }
+  .scoreCard[data-state="warn"] .score, .scoreCard[data-state="warn"] .status { color: var(--warn); }
+  .scoreCard[data-state="bad"]  .score, .scoreCard[data-state="bad"]  .status { color: var(--bad); }
+  .tips { list-style: none; padding: 0; margin: 8px 0 0; color: var(--muted); font-size: 13px; min-height: 1.5em; }
+
+  .stats { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+  .stats div { background: var(--bg); border-radius: 10px; padding: 10px; }
+  .stats span { display: block; font-size: 20px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .stats small { color: var(--muted); }
+
+  label { display: block; margin: 0 0 12px; font-size: 14px; }
+  label output { float: right; color: var(--muted); font-variant-numeric: tabular-nums; }
+  input[type=range] { width: 100%; margin-top: 4px; accent-color: var(--accent); }
+  label.check { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; }
+  summary { cursor: pointer; font-weight: 600; }
+  pre { margin: 10px 0 0; font-size: 12px; white-space: pre-wrap; color: var(--muted); }
+
+  body.alerting::after { content: ""; position: fixed; inset: 0; pointer-events: none;
+    box-shadow: inset 0 0 0 8px var(--bad); animation: pulse 1.2s ease-in-out infinite; }
+  @keyframes pulse { 50% { opacity: .35; } }
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <h1>坐直点 <span class="tag">v0.1</span></h1>
+    <p class="sub">摄像头画面只在你的电脑上处理，不上传、不保存。</p>
+  </div>
+  <nav class="links">
+    <a href="https://github.com/yanghuiying1002/sit-up-straight" target="_blank" rel="noopener">⭐ GitHub</a>
+    <a href="https://github.com/yanghuiying1002/sit-up-straight/issues" target="_blank" rel="noopener">💬 反馈</a>
+    <a href="https://github.com/yanghuiying1002/sit-up-straight#-支持作者" target="_blank" rel="noopener">☕ 支持作者</a>
+  </nav>
+</header>
+
+<main>
+  <section class="card">
+    <div class="videoWrap">
+      <video id="video" playsinline muted></video>
+      <canvas id="overlay"></canvas>
+      <div id="placeholder" class="placeholder">点击「开启摄像头」开始<br>请让头和双肩都出现在画面里</div>
+      <div id="countdown" class="countdown hidden"></div>
+    </div>
+    <div class="controls">
+      <button id="btnStart" class="primary">开启摄像头</button>
+      <button id="btnCalib" disabled>校准（先坐直）</button>
+      <button id="btnPip" disabled>画中画小窗</button>
+      <button id="btnTest">测试提醒</button>
+    </div>
+    <p id="msg" class="msg">第一步：开启摄像头。第二步：坐直后点「校准」。</p>
+  </section>
+
+  <aside>
+    <div id="scoreCard" class="card scoreCard">
+      <div class="label">当前坐姿分</div>
+      <div id="score" class="score">--</div>
+      <div id="status" class="status">未开始</div>
+      <ul id="tips" class="tips"></ul>
+    </div>
+
+    <div class="card">
+      <h2>今天</h2>
+      <div class="stats">
+        <div><span id="goodTime">0分</span><small>坐得好</small></div>
+        <div><span id="badTime">0分</span><small>驼背</small></div>
+        <div><span id="alertCount">0</span><small>提醒次数</small></div>
+        <div><span id="ratio">--</span><small>良好占比</small></div>
+      </div>
+      <button id="btnReset" class="link">清空今天数据</button>
+    </div>
+
+    <div class="card">
+      <h2>设置</h2>
+      <label>灵敏度 <output id="oSens"></output><input type="range" id="sens" min="0.5" max="2" step="0.1"></label>
+      <label>低于多少分算驼背 <output id="oThr"></output><input type="range" id="thr" min="30" max="90" step="5"></label>
+      <label>驼背持续多久才提醒 <output id="oDelay"></output><input type="range" id="delay" min="3" max="60" step="1"></label>
+      <label>两次提醒最短间隔 <output id="oCool"></output><input type="range" id="cool" min="10" max="600" step="10"></label>
+      <label class="check"><input type="checkbox" id="sound"> 声音提醒</label>
+      <label class="check"><input type="checkbox" id="notify"> 系统通知</label>
+    </div>
+
+    <details class="card">
+      <summary>调试数据</summary>
+      <pre id="debug">还没有数据</pre>
+    </details>
+  </aside>
+</main>
+
+<script type="module">
+import { PoseLandmarker, FilesetResolver } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14";
+
+const MP_WASM = "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm";
+const MODEL_URL = "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task";
+const TITLE = document.title;
+
+// ---------- 小工具 ----------
+const $ = (id) => document.getElementById(id);
+const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+const store = {
+  get(k, d) { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch { return d; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
+};
+const fmtTime = (sec) => { const m = Math.floor(sec / 60); return m >= 60 ? `${Math.floor(m / 60)}时${m % 60}分` : `${m}分`; };
+const dayKey = () => "posture-stats-" + new Date().toLocaleDateString("sv");
+
+// ---------- 状态 ----------
+const settings = Object.assign({ sens: 1, thr: 60, delay: 10, cool: 60, sound: true, notify: true }, store.get("posture-settings", {}));
+let baseline = store.get("posture-baseline", null);
+let curDay = dayKey();
+let stats = store.get(curDay, { good: 0, bad: 0, alerts: 0 });
+
+let landmarker = null, audioCtx = null, alertAudio = null, audioUnlock = null, soundState = "还没响过";
+let ema = null, badSince = null, lastAlert = 0, lastTick = 0, lastSave = 0, alerting = false, busy = false;
+let calibrating = null;   // { samples: [], until }
+
+const video = $("video"), canvas = $("overlay"), ctx = canvas.getContext("2d");
+
+// ---------- 设置面板 ----------
+const sliders = [
+  ["sens", "oSens", (v) => v.toFixed(1) + "×"],
+  ["thr", "oThr", (v) => v + " 分"],
+  ["delay", "oDelay", (v) => v + " 秒"],
+  ["cool", "oCool", (v) => v + " 秒"],
+];
+for (const [id, out, fmt] of sliders) {
+  const el = $(id);
+  el.value = settings[id];
+  $(out).textContent = fmt(+el.value);
+  el.addEventListener("input", () => {
+    settings[id] = +el.value;
+    $(out).textContent = fmt(settings[id]);
+    store.set("posture-settings", settings);
+  });
+}
+for (const id of ["sound", "notify"]) {
+  const el = $(id);
+  el.checked = settings[id];
+  el.addEventListener("change", () => {
+    settings[id] = el.checked;
+    store.set("posture-settings", settings);
+    if (id === "notify" && el.checked) askNotify();
+  });
+}
+
+function setMsg(text, isError = false) {
+  $("msg").textContent = text;
+  $("msg").classList.toggle("error", isError);
+}
+function askNotify() {
+  if ("Notification" in window && Notification.permission === "default") Notification.requestPermission();
+}
+// 必须在用户点击按钮时调用：浏览器只允许“用户点过之后”的页面发声
+function ensureAudio() {
+  try {
+    if (!alertAudio) {
+      alertAudio = new Audio(makeBeepUrl());
+      alertAudio.muted = true;   // 先静音播一次，把声音“解锁”，之后后台也能响
+      audioUnlock = alertAudio.play()
+        .then(() => { alertAudio.pause(); alertAudio.currentTime = 0; })
+        .catch(() => {})
+        .finally(() => { alertAudio.muted = false; });
+    }
+    audioCtx ??= new (window.AudioContext || window.webkitAudioContext)();
+    if (audioCtx.state === "suspended") audioCtx.resume();
+  } catch {}
+}
+
+// 生成一段“嘀-嘟-嘀”提示音（WAV 格式），不需要额外的音频文件
+function makeBeepUrl() {
+  const rate = 22050, tones = [880, 660, 880], toneLen = 0.16, gap = 0.06, slotLen = toneLen + gap;
+  const total = Math.round(rate * tones.length * slotLen);
+  const buf = new ArrayBuffer(44 + total * 2), dv = new DataView(buf);
+  const w = (o, s) => { for (let i = 0; i < s.length; i++) dv.setUint8(o + i, s.charCodeAt(i)); };
+  w(0, "RIFF"); dv.setUint32(4, 36 + total * 2, true); w(8, "WAVE"); w(12, "fmt ");
+  dv.setUint32(16, 16, true); dv.setUint16(20, 1, true); dv.setUint16(22, 1, true);
+  dv.setUint32(24, rate, true); dv.setUint32(28, rate * 2, true);
+  dv.setUint16(32, 2, true); dv.setUint16(34, 16, true);
+  w(36, "data"); dv.setUint32(40, total * 2, true);
+  for (let i = 0; i < total; i++) {
+    const t = i / rate, slot = Math.floor(t / slotLen), local = t - slot * slotLen;
+    let v = 0;
+    if (slot < tones.length && local < toneLen) {
+      const env = Math.min(1, local / 0.01, (toneLen - local) / 0.02);   // 淡入淡出，避免“咔哒”声
+      v = Math.sin(2 * Math.PI * tones[slot] * t) * env * 0.7;
+    }
+    dv.setInt16(44 + i * 2, Math.round(v * 32767), true);
+  }
+  return URL.createObjectURL(new Blob([buf], { type: "audio/wav" }));
+}
+
+// ---------- 启动摄像头 + 模型 ----------
+$("btnStart").onclick = async () => {
+  $("btnStart").disabled = true;
+  ensureAudio();
+  if (settings.notify) askNotify();
+  try {
+    setMsg("正在加载姿态模型（第一次需要几秒）…");
+    landmarker ??= await createLandmarker();
+    setMsg("正在打开摄像头…");
+    const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480, facingMode: "user" }, audio: false });
+    video.srcObject = stream;
+    await video.play();
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    $("placeholder").classList.add("hidden");
+    $("btnCalib").disabled = false;
+    $("btnPip").disabled = !document.pictureInPictureEnabled;
+    $("btnStart").textContent = "摄像头已开启";
+    setMsg(baseline
+      ? "已载入上次的校准。换了座位或挪了摄像头，请重新校准。"
+      : "请坐直、看着屏幕，然后点「校准」。");
+    ticker.postMessage(300);   // 约每秒 3 次检测：坐姿变化很慢，够用且更省电
+  } catch (e) {
+    console.error(e);
+    $("btnStart").disabled = false;
+    setMsg(e && e.name === "NotAllowedError"
+      ? "没有摄像头权限。请在浏览器地址栏旁边允许摄像头，然后重试。"
+      : "启动失败：" + (e && e.message ? e.message : e), true);
+  }
+};
+
+async function createLandmarker() {
+  const vision = await FilesetResolver.forVisionTasks(MP_WASM);
+  const opts = (delegate) => ({
+    baseOptions: { modelAssetPath: MODEL_URL, delegate },
+    runningMode: "VIDEO",
+    numPoses: 1,
+  });
+  try { return await PoseLandmarker.createFromOptions(vision, opts("GPU")); }
+  catch { return await PoseLandmarker.createFromOptions(vision, opts("CPU")); }
+}
+
+// 用 Worker 计时：标签页切到后台时，普通定时器会被浏览器严重降速
+const ticker = new Worker(URL.createObjectURL(new Blob(
+  ["let t;onmessage=e=>{clearInterval(t);if(e.data>0)t=setInterval(()=>postMessage(0),e.data)}"],
+  { type: "text/javascript" })));
+ticker.onmessage = tick;
+
+function tick() {
+  if (busy || !landmarker || video.readyState < 2) return;
+  busy = true;
+  try {
+    const now = performance.now();
+    const res = landmarker.detectForVideo(video, now);
+    const lm = res.landmarks && res.landmarks[0];
+    handle(lm ? metrics(lm) : null, lm, now);
+  } catch (e) {
+    console.error(e);
+  } finally {
+    busy = false;
+  }
+}
+
+// ---------- 从关键点算出坐姿指标 ----------
+// MediaPipe 关键点编号：0 鼻子，2/5 左右眼，7/8 左右耳，11/12 左右肩
+// 有些版本的模型不给出可见度（全是 0），这时就当作都看得见
+const visOf = (lm) => {
+  const has = lm.some((p) => p.visibility > 0);
+  return (i) => (has ? lm[i].visibility : 1);
+};
+
+function metrics(lm) {
+  const vis = visOf(lm);
+  if (vis(11) < 0.5 || vis(12) < 0.5 || vis(2) < 0.5 || vis(5) < 0.5) return null;
+  const A = video.videoWidth / video.videoHeight || 4 / 3;   // 坐标是按宽高分别归一化的，算距离要还原比例
+  const P = (i) => ({ x: lm[i].x * A, y: lm[i].y });
+  const mid = (a, b) => ({ x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 });
+  const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
+
+  const lSh = P(11), rSh = P(12);
+  const shW = dist(lSh, rSh);
+  if (shW < 0.05) return null;
+  const sh = mid(lSh, rSh), eye = mid(P(2), P(5));
+  const earsOk = vis(7) > 0.5 && vis(8) > 0.5;
+
+  return {
+    neck: (sh.y - eye.y) / shW,                 // 眼睛到肩线的高度（驼背时变小）
+    size: shW,                                  // 肩宽占画面比例（靠近屏幕时变大）
+    headRatio: dist(P(2), P(5)) / shW,          // 头宽 / 肩宽（头往前探时变大）
+    nose: earsOk ? (P(0).y - mid(P(7), P(8)).y) / shW : null,   // 鼻子比耳朵低多少（低头时变大）
+    tilt: Math.atan2(lSh.y - rSh.y, lSh.x - rSh.x) * 180 / Math.PI, // 肩线角度
+  };
+}
+
+// ---------- 跟校准时的姿势比较，打分 ----------
+function evaluate(m, b, sens) {
+  const parts = [];
+  const add = (v, scale, weight, label) => parts.push({ p: clamp(v / scale, 0, 2) * weight, label });
+  add((b.neck - m.neck) / b.neck, 0.20, 45, "头往下沉，脖子缩进肩膀了");
+  add((m.size - b.size) / b.size, 0.25, 25, "离屏幕太近了");
+  add((m.headRatio - b.headRatio) / b.headRatio, 0.20, 15, "头往前探了");
+  if (m.nose != null && b.nose != null) add(m.nose - b.nose, 0.12, 20, "低头了");
+  add(Math.abs(m.tilt - b.tilt) - 3, 8, 15, "肩膀歪了，一边高一边低");
+  const total = parts.reduce((s, x) => s + x.p, 0);
+  const reasons = parts.filter((x) => x.p >= 8).sort((a, b) => b.p - a.p).map((x) => x.label);
+  return { score: clamp(100 - total * sens, 0, 100), reasons };
+}
+
+// ---------- 每一帧的处理 ----------
+function handle(m, lm, now) {
+  const dt = lastTick ? Math.min((now - lastTick) / 1000, 2) : 0;
+  lastTick = now;
+  draw(lm);
+
+  if (calibrating) {
+    if (m) calibrating.samples.push(m);
+    const left = Math.ceil((calibrating.until - now) / 1000);
+    $("countdown").textContent = left > 0 ? left : "";
+    if (now >= calibrating.until) finishCalibration();
+    return;
+  }
+  if (!m) {
+    showIdle("没看到人", "离开座位或没拍到肩膀时不计时");
+    ema = null; badSince = null; clearAlert();
+    return;
+  }
+  if (!baseline) { showIdle("还没校准", "坐直后点「校准」"); return; }
+
+  const { score, reasons } = evaluate(m, baseline, settings.sens);
+  ema = ema == null ? score : ema * 0.75 + score * 0.25;   // 平滑，避免分数乱跳
+  const s = Math.round(ema);
+  const bad = s < settings.thr;
+
+  if (bad) stats.bad += dt; else stats.good += dt;
+
+  if (bad) {
+    badSince ??= now;
+    if (now - badSince >= settings.delay * 1000 && Date.now() - lastAlert >= settings.cool * 1000) {
+      fireAlert(reasons);
+    }
+  } else if (s >= settings.thr + 5) {   // 留 5 分缓冲，避免在临界点来回跳
+    badSince = null;
+    clearAlert();
+  }
+
+  render(s, bad, reasons, m);
+  if (now - lastSave > 5000) { lastSave = now; saveStats(); }
+}
+
+// ---------- 校准 ----------
+$("btnCalib").onclick = () => {
+  calibrating = { samples: [], until: performance.now() + 3000 };
+  $("countdown").classList.remove("hidden");
+  setMsg("保持坐直、看着屏幕，正在采集 3 秒…");
+};
+
+function finishCalibration() {
+  const s = calibrating.samples;
+  calibrating = null;
+  $("countdown").classList.add("hidden");
+  if (s.length < 5) {
+    setMsg("没看清你的头和肩膀。让上半身出现在画面里、光线亮一点，再试一次。", true);
+    return;
+  }
+  const median = (k) => {
+    const a = s.map((x) => x[k]).filter((x) => x != null).sort((x, y) => x - y);
+    return a.length ? a[a.length >> 1] : null;
+  };
+  baseline = { neck: median("neck"), size: median("size"), headRatio: median("headRatio"),
+               nose: median("nose"), tilt: median("tilt"), at: Date.now() };
+  store.set("posture-baseline", baseline);
+  ema = null; badSince = null;
+  setMsg("校准完成 ✓ 试试故意驼背、低头、凑近屏幕，看分数怎么变。");
+}
+
+// ---------- 提醒 ----------
+function fireAlert(reasons) {
+  lastAlert = Date.now();
+  stats.alerts++;
+  saveStats();
+  const body = reasons[0] ? reasons[0] + "，调整一下吧。" : "你已经驼背一会儿了，调整一下吧。";
+  showAlert(body);
+}
+
+function showAlert(body) {
+  alerting = true;
+  document.body.classList.add("alerting");
+  document.title = "⚠️ 坐直！— " + TITLE;
+  if (settings.sound) beep();
+  if (settings.notify && "Notification" in window && Notification.permission === "granted") {
+    try {
+      const n = new Notification("该坐直啦", { body, tag: "posture", silent: true });
+      n.onclick = () => { window.focus(); n.close(); };
+    } catch {}
+  }
+}
+
+function clearAlert() {
+  if (!alerting) return;
+  alerting = false;
+  document.body.classList.remove("alerting");
+  document.title = TITLE;
+}
+
+$("btnTest").onclick = () => {
+  ensureAudio();
+  askNotify();
+  showAlert("这是一次测试提醒。");
+  setTimeout(clearAlert, 3000);
+};
+
+// 先用 <audio> 播放（在后台标签页里更可靠），失败再用 WebAudio 兜底
+async function beep() {
+  if (alertAudio) {
+    try { await audioUnlock; } catch {}
+    try {
+      alertAudio.muted = false;
+      alertAudio.volume = 1;
+      alertAudio.currentTime = 0;
+      await alertAudio.play();
+      soundState = "正常（audio）";
+      return;
+    } catch (e) {
+      console.warn("audio 播放失败，改用 WebAudio：", e);
+    }
+  }
+  webAudioBeep();
+}
+
+function webAudioBeep() {
+  try {
+    audioCtx ??= new (window.AudioContext || window.webkitAudioContext)();
+    if (audioCtx.state === "suspended") audioCtx.resume();
+    soundState = "WebAudio：" + audioCtx.state;
+    const t = audioCtx.currentTime;
+    [880, 660, 880].forEach((freq, i) => {
+      const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+      const t0 = t + i * 0.22;
+      o.type = "sine";
+      o.frequency.value = freq;
+      g.gain.setValueAtTime(0.0001, t0);
+      g.gain.exponentialRampToValueAtTime(0.6, t0 + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.16);
+      o.connect(g).connect(audioCtx.destination);
+      o.start(t0);
+      o.stop(t0 + 0.17);
+    });
+  } catch {}
+}
+
+// ---------- 画中画（切到别的窗口也能看到自己） ----------
+$("btnPip").onclick = async () => {
+  try {
+    if (document.pictureInPictureElement) await document.exitPictureInPicture();
+    else await video.requestPictureInPicture();
+  } catch (e) { setMsg("画中画打不开：" + e.message, true); }
+};
+
+// ---------- 画面与界面 ----------
+function draw(lm) {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  if (!lm) return;
+  const W = canvas.width, H = canvas.height;
+  const pt = (i) => [lm[i].x * W, lm[i].y * H];
+  const color = getComputedStyle(document.documentElement).getPropertyValue(alerting ? "--bad" : "--accent").trim();
+  ctx.lineWidth = 3;
+  ctx.strokeStyle = color;
+  ctx.fillStyle = color;
+  const line = (a, b) => { ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]); ctx.stroke(); };
+  const mid = (a, b) => [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+  line(pt(11), pt(12));
+  line(mid(pt(11), pt(12)), mid(pt(2), pt(5)));
+  const vis = visOf(lm);
+  for (const i of [0, 2, 5, 7, 8, 11, 12]) {
+    if (vis(i) < 0.5) continue;
+    const [x, y] = pt(i);
+    ctx.beginPath();
+    ctx.arc(x, y, 5, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
+function render(s, bad, reasons, m) {
+  $("score").textContent = s;
+  const state = s >= settings.thr + 15 ? "good" : bad ? "bad" : "warn";
+  $("scoreCard").dataset.state = state;
+  $("status").textContent = { good: "坐得很好 👍", warn: "有点松懈了", bad: "驼背了！" }[state];
+  $("tips").innerHTML = reasons.slice(0, 2).map((r) => `<li>${r}</li>`).join("");
+  renderStats();
+  const f = (v) => (v == null ? "-" : v.toFixed(3));
+  $("debug").textContent =
+    `指标        现在     校准时\n` +
+    `头肩高度    ${f(m.neck)}   ${f(baseline.neck)}\n` +
+    `肩宽        ${f(m.size)}   ${f(baseline.size)}\n` +
+    `头宽/肩宽   ${f(m.headRatio)}   ${f(baseline.headRatio)}\n` +
+    `鼻低于耳    ${f(m.nose)}   ${f(baseline.nose)}\n` +
+    `肩线角度    ${f(m.tilt)}   ${f(baseline.tilt)}\n` +
+    `原始分 → 平滑分：${Math.round(evaluate(m, baseline, settings.sens).score)} → ${s}\n` +
+    `提示音：${settings.sound ? soundState : "已关闭"}`;
+}
+
+function showIdle(status, tip) {
+  $("score").textContent = "--";
+  $("scoreCard").dataset.state = "";
+  $("status").textContent = status;
+  $("tips").innerHTML = `<li>${tip}</li>`;
+  renderStats();
+}
+
+function renderStats() {
+  $("goodTime").textContent = fmtTime(stats.good);
+  $("badTime").textContent = fmtTime(stats.bad);
+  $("alertCount").textContent = stats.alerts;
+  const total = stats.good + stats.bad;
+  $("ratio").textContent = total > 30 ? Math.round((stats.good / total) * 100) + "%" : "--";
+}
+
+function saveStats() {
+  const k = dayKey();
+  if (k !== curDay) { curDay = k; stats = { good: 0, bad: 0, alerts: 0 }; }
+  store.set(curDay, stats);
+}
+
+$("btnReset").onclick = () => {
+  stats = { good: 0, bad: 0, alerts: 0 };
+  saveStats();
+  renderStats();
+};
+
+window.addEventListener("beforeunload", saveStats);
+renderStats();
+</script>
+</body>
+</html>
