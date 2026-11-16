@@ -11,7 +11,9 @@
 
 [中文](#中文) · [English](#english)
 
-<!-- TODO: 在这里放一张演示 GIF，效果最好：assets/demo.gif -->
+<img src="assets/demo.svg" width="720" alt="演示：驼背时分数从 96 掉到 41，屏幕闪红框、响提示音、弹系统通知；坐直后恢复">
+
+<sub>示意动画 · 真实效果请打开 <a href="https://yanghuiying1002.github.io/sit-up-straight/">在线版</a> 体验</sub>
 
 </div>
 

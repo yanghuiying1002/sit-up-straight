@@ -1,0 +1,121 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 450" width="800" height="450" font-family="-apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', 'Noto Sans CJK SC', sans-serif">
+  <title>坐直点演示：驼背时分数下降并提醒，坐直后恢复</title>
+  <defs>
+    <clipPath id="cam"><rect x="24" y="24" width="470" height="402" rx="14"/></clipPath>
+  </defs>
+
+  <!-- 时间线（8 秒循环）：0–2.4s 坐直 → 2.4–3.2s 驼背 → 4.4s 提醒 → 6.4–7.2s 坐直恢复 -->
+  <rect width="800" height="450" rx="18" fill="#f5f6f8"/>
+
+  <!-- ===== 左侧：摄像头画面 ===== -->
+  <g clip-path="url(#cam)">
+    <rect x="24" y="24" width="470" height="402" fill="#14171c"/>
+    <text x="44" y="52" font-size="13" fill="#8b929c">摄像头画面（示意）</text>
+
+    <!-- 校准位置 -->
+    <line x1="150" y1="193" x2="370" y2="193" stroke="#8b929c" stroke-width="1.5" stroke-dasharray="6 6" opacity="0.7"/>
+    <text x="376" y="197" font-size="12" fill="#8b929c">校准时眼睛位置</text>
+
+    <!-- 身体 -->
+    <g>
+      <animateTransform attributeName="transform" type="translate" values="0 0;0 0;0 -8;0 -8;0 0;0 0" keyTimes="0;0.3;0.4;0.8;0.9;1" dur="8s" repeatCount="indefinite"/>
+      <path d="M140 460 Q140 348 188 332 L332 332 Q380 348 380 460 Z" fill="#2b313b"/>
+    </g>
+
+    <!-- 头 -->
+    <g>
+      <animateTransform attributeName="transform" type="translate" values="0 0;0 0;0 44;0 44;0 0;0 0" keyTimes="0;0.3;0.4;0.8;0.9;1" dur="8s" repeatCount="indefinite"/>
+      <circle cx="260" cy="200" r="50" fill="#3a414d">
+        <animate attributeName="r" values="50;50;56;56;50;50" keyTimes="0;0.3;0.4;0.8;0.9;1" dur="8s" repeatCount="indefinite"/>
+      </circle>
+    </g>
+
+    <!-- 识别出的骨架线 -->
+    <g stroke="#60a5fa" stroke-width="3" stroke-linecap="round">
+      <animate attributeName="stroke" values="#60a5fa;#ef4444;#60a5fa" keyTimes="0;0.55;0.85" calcMode="discrete" dur="8s" repeatCount="indefinite"/>
+      <line x1="170" y1="332" x2="350" y2="332">
+        <animate attributeName="y1" values="332;332;324;324;332;332" keyTimes="0;0.3;0.4;0.8;0.9;1" dur="8s" repeatCount="indefinite"/>
+        <animate attributeName="y2" values="332;332;324;324;332;332" keyTimes="0;0.3;0.4;0.8;0.9;1" dur="8s" repeatCount="indefinite"/>
+      </line>
+      <line x1="260" y1="332" x2="260" y2="193">
+        <animate attributeName="y1" values="332;332;324;324;332;332" keyTimes="0;0.3;0.4;0.8;0.9;1" dur="8s" repeatCount="indefinite"/>
+        <animate attributeName="y2" values="193;193;237;237;193;193" keyTimes="0;0.3;0.4;0.8;0.9;1" dur="8s" repeatCount="indefinite"/>
+      </line>
+    </g>
+
+    <!-- 关键点 -->
+    <g fill="#60a5fa">
+      <animate attributeName="fill" values="#60a5fa;#ef4444;#60a5fa" keyTimes="0;0.55;0.85" calcMode="discrete" dur="8s" repeatCount="indefinite"/>
+      <circle cx="170" cy="332" r="6">
+        <animate attributeName="cy" values="332;332;324;324;332;332" keyTimes="0;0.3;0.4;0.8;0.9;1" dur="8s" repeatCount="indefinite"/>
+      </circle>
+      <circle cx="350" cy="332" r="6">
+        <animate attributeName="cy" values="332;332;324;324;332;332" keyTimes="0;0.3;0.4;0.8;0.9;1" dur="8s" repeatCount="indefinite"/>
+      </circle>
+      <g>
+        <animateTransform attributeName="transform" type="translate" values="0 0;0 0;0 44;0 44;0 0;0 0" keyTimes="0;0.3;0.4;0.8;0.9;1" dur="8s" repeatCount="indefinite"/>
+        <circle cx="243" cy="193" r="5.5"/>
+        <circle cx="277" cy="193" r="5.5"/>
+        <circle cx="260" cy="214" r="5.5"/>
+        <circle cx="212" cy="200" r="5.5"/>
+        <circle cx="308" cy="200" r="5.5"/>
+      </g>
+    </g>
+
+    <!-- 提示音 -->
+    <text x="44" y="408" font-size="14" font-weight="600" fill="#fca5a5" opacity="0">♪ 嘀—嘟—嘀
+      <animate attributeName="opacity" values="0;1;0" keyTimes="0;0.55;0.66" calcMode="discrete" dur="8s" repeatCount="indefinite"/>
+    </text>
+
+    <!-- 系统通知 -->
+    <g transform="translate(300 0)">
+      <animateTransform attributeName="transform" type="translate" values="300 0;300 0;0 0;0 0;300 0;300 0" keyTimes="0;0.55;0.585;0.79;0.825;1" dur="8s" repeatCount="indefinite"/>
+      <rect x="250" y="40" width="232" height="64" rx="12" fill="#ffffff"/>
+      <circle cx="276" cy="72" r="13" fill="#ef4444"/>
+      <text x="276" y="77.5" font-size="16" font-weight="700" fill="#ffffff" text-anchor="middle">!</text>
+      <text x="298" y="66" font-size="14" font-weight="700" fill="#1d2129">该坐直啦</text>
+      <text x="298" y="88" font-size="12" fill="#6b7280">头往下沉了，调整一下吧</text>
+    </g>
+  </g>
+
+  <!-- ===== 右侧：分数面板 ===== -->
+  <rect x="514" y="24" width="262" height="402" rx="14" fill="#ffffff" stroke="#e3e6ea"/>
+  <text x="645" y="62" font-size="18" font-weight="700" fill="#1d2129" text-anchor="middle">坐直点</text>
+  <text x="645" y="104" font-size="13" fill="#6b7280" text-anchor="middle">当前坐姿分</text>
+
+  <g font-size="64" font-weight="700" text-anchor="middle">
+    <text x="645" y="172" fill="#16a34a">96<animate attributeName="opacity" values="1;0;1" keyTimes="0;0.3;0.87" calcMode="discrete" dur="8s" repeatCount="indefinite"/></text>
+    <text x="645" y="172" fill="#d97706" opacity="0">78<animate attributeName="opacity" values="0;1;0" keyTimes="0;0.3;0.36" calcMode="discrete" dur="8s" repeatCount="indefinite"/></text>
+    <text x="645" y="172" fill="#dc2626" opacity="0">55<animate attributeName="opacity" values="0;1;0" keyTimes="0;0.36;0.42" calcMode="discrete" dur="8s" repeatCount="indefinite"/></text>
+    <text x="645" y="172" fill="#dc2626" opacity="0">41<animate attributeName="opacity" values="0;1;0" keyTimes="0;0.42;0.82" calcMode="discrete" dur="8s" repeatCount="indefinite"/></text>
+    <text x="645" y="172" fill="#d97706" opacity="0">70<animate attributeName="opacity" values="0;1;0" keyTimes="0;0.82;0.87" calcMode="discrete" dur="8s" repeatCount="indefinite"/></text>
+  </g>
+
+  <g font-size="16" font-weight="700" text-anchor="middle">
+    <text x="645" y="206" fill="#16a34a">坐得很好<animate attributeName="opacity" values="1;0;1" keyTimes="0;0.33;0.88" calcMode="discrete" dur="8s" repeatCount="indefinite"/></text>
+    <text x="645" y="206" fill="#d97706" opacity="0">有点松懈了<animate attributeName="opacity" values="0;1;0;1;0" keyTimes="0;0.33;0.39;0.84;0.88" calcMode="discrete" dur="8s" repeatCount="indefinite"/></text>
+    <text x="645" y="206" fill="#dc2626" opacity="0">驼背了！<animate attributeName="opacity" values="0;1;0" keyTimes="0;0.39;0.84" calcMode="discrete" dur="8s" repeatCount="indefinite"/></text>
+  </g>
+  <text x="645" y="232" font-size="12" fill="#6b7280" text-anchor="middle" opacity="0">头往下沉，脖子缩进肩膀了<animate attributeName="opacity" values="0;1;0" keyTimes="0;0.39;0.84" calcMode="discrete" dur="8s" repeatCount="indefinite"/></text>
+
+  <line x1="534" y1="256" x2="756" y2="256" stroke="#e3e6ea"/>
+  <text x="534" y="282" font-size="13" font-weight="700" fill="#1d2129">今天</text>
+
+  <rect x="534" y="294" width="106" height="58" rx="10" fill="#f5f6f8"/>
+  <text x="548" y="322" font-size="20" font-weight="700" fill="#1d2129">2时15分</text>
+  <text x="548" y="342" font-size="12" fill="#6b7280">坐得好</text>
+
+  <rect x="650" y="294" width="106" height="58" rx="10" fill="#f5f6f8"/>
+  <text x="664" y="322" font-size="20" font-weight="700" fill="#1d2129">12分</text>
+  <text x="664" y="342" font-size="12" fill="#6b7280">驼背</text>
+
+  <text x="534" y="378" font-size="12" fill="#6b7280">今日提醒 3 次<animate attributeName="opacity" values="1;0" keyTimes="0;0.55" calcMode="discrete" dur="8s" repeatCount="indefinite"/></text>
+  <text x="534" y="378" font-size="12" fill="#dc2626" opacity="0">今日提醒 4 次<animate attributeName="opacity" values="0;1" keyTimes="0;0.55" calcMode="discrete" dur="8s" repeatCount="indefinite"/></text>
+
+  <text x="645" y="410" font-size="12" fill="#8b929c" text-anchor="middle">画面只在本机处理 · 不上传</text>
+
+  <!-- 提醒时的红框 -->
+  <rect x="4" y="4" width="792" height="442" rx="16" fill="none" stroke="#ef4444" stroke-width="8" opacity="0">
+    <animate attributeName="opacity" values="0;0;1;0.3;1;0.3;1;0.3;0;0" keyTimes="0;0.55;0.58;0.62;0.66;0.70;0.74;0.78;0.82;1" dur="8s" repeatCount="indefinite"/>
+  </rect>
+</svg>
