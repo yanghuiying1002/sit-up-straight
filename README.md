@@ -11,7 +11,7 @@
 
 [中文](#中文) · [English](#english)
 
-<img src="assets/demo.svg" width="720" alt="演示：驼背时分数从 96 掉到 41，屏幕闪红框、响提示音、弹系统通知；坐直后恢复">
+<img src="https://yanghuiying1002.github.io/sit-up-straight/assets/demo.svg" width="720" alt="演示：驼背时分数从 96 掉到 41，屏幕闪红框、响提示音、弹系统通知；坐直后恢复">
 
 <sub>示意动画 · 真实效果请打开 <a href="https://yanghuiying1002.github.io/sit-up-straight/">在线版</a> 体验</sub>
 
@@ -109,7 +109,7 @@ python3 -m http.server 8765
 <!-- TODO: 把你的收款码图片放到 assets/donate/ 文件夹，文件名分别是 wechat.png 和 alipay.png -->
 | 微信 | 支付宝 |
 |:---:|:---:|
-| <img src="assets/donate/wechat.png" width="200" alt="微信赞赏码"> | <img src="assets/donate/alipay.png" width="200" alt="支付宝收款码"> |
+| <img src="https://yanghuiying1002.github.io/sit-up-straight/assets/donate/wechat.png" width="200" alt="微信赞赏码"> | <img src="https://yanghuiying1002.github.io/sit-up-straight/assets/donate/alipay.png" width="200" alt="支付宝收款码"> |
 
 ### 免责声明
 
